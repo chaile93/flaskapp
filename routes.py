@@ -1,24 +1,31 @@
-# authentication/routes.py
+# main/routes.py
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import login_user, logout_user, current_user, login_required
-from .forms import LoginForm, SignupForm
-from .models import User
-from car_inventory import db, bcrypt
+from flask import Blueprint, render_template, redirect, url_for, flash, jsonify
+from flask_login import login_required
+from .forms import BookForm
+from .models import Book
+from car_inventory import db
 
-auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
+main_bp = Blueprint('main', __name__)
 
-@auth_bp.route('/login', methods=['GET', 'POST'])
-def login():
-    form = LoginForm()
+@main_bp.route('/books', methods=['GET', 'POST'])
+@login_required
+def books():
+    form = BookForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
-        if user and bcrypt.check_password_hash(user.password, form.password.data):
-            login_user(user)
-            next_page = request.args.get('next')
-            return redirect(next_page or url_for('main.index'))
-        else:
-            flash('Login unsuccessful. Please check email and password.', 'danger')
-    return render_template('login.html', form=form)
+        new_book = Book(
+            isbn=form.isbn.data,
+            title=form.title.data,
+            author=form.author.data,
+            book_length=form.book_length.data,
+            format=form.format.data
+        )
+        db.session.add(new_book)
+        db.session.commit()
+        flash('Book added successfully!', 'success')
+        return redirect(url_for('main.books'))
 
-# Similar routes for signup, logout, etc.
+    books = Book.query.all()
+    return render_template('books.html', form=form, books=books)
+
+# Other CRUD routes (get_book, update_book, delete_book) would be implemented similarly
